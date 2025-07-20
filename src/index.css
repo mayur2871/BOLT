@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar for better UX */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Form styling improvements */
+.form-section {
+  @apply bg-gray-50 p-4 rounded-lg mb-6;
+}
+
+.form-section h3 {
+  @apply text-lg font-semibold text-gray-800 mb-4 flex items-center;
+}
+
+/* Table responsive improvements */
+@media (max-width: 768px) {
+  .table-container {
+    font-size: 14px;
+  }
+  
+  .table-container th,
+  .table-container td {
+    padding: 8px 4px;
+  }
+}
+
+/* Modal backdrop blur effect */
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+}
+
+/* Status badge animations */
+.status-badge {
+  transition: all 0.2s ease-in-out;
+}
+
+.status-badge:hover {
+  transform: scale(1.05);
+}
+
+/* Button hover effects */
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all duration-200 font-medium;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Input focus effects */
+input:focus,
+select:focus,
+textarea:focus {
+  @apply ring-2 ring-blue-500 border-transparent;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Card hover effects */
+.data-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.data-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
