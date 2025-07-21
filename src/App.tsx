@@ -213,6 +213,43 @@ function App() {
     )
   );
 
+  // Calculate transport-wise outstanding amounts
+  const getTransportOutstanding = () => {
+    const transportData: { [key: string]: { outstanding: number; totalRecords: number; paidRecords: number } } = {};
+    
+    records.forEach(record => {
+      if (record.transport && record.transport.trim()) {
+        const transport = record.transport.trim();
+        const netAmount = parseFloat(record.netAmount?.replace(/[^0-9.-]/g, '') || '0');
+        const isPaid = record.isBalPaid === 'YES';
+        
+        if (!transportData[transport]) {
+          transportData[transport] = { outstanding: 0, totalRecords: 0, paidRecords: 0 };
+        }
+        
+        transportData[transport].totalRecords += 1;
+        if (isPaid) {
+          transportData[transport].paidRecords += 1;
+        } else {
+          transportData[transport].outstanding += netAmount;
+        }
+      }
+    });
+    
+    return Object.entries(transportData)
+      .map(([transport, data]) => ({
+        transport,
+        outstanding: data.outstanding,
+        totalRecords: data.totalRecords,
+        paidRecords: data.paidRecords,
+        pendingRecords: data.totalRecords - data.paidRecords
+      }))
+      .sort((a, b) => b.outstanding - a.outstanding);
+  };
+
+  const transportOutstanding = getTransportOutstanding();
+  const totalOutstanding = transportOutstanding.reduce((sum, item) => sum + item.outstanding, 0);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -238,6 +275,134 @@ function App() {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
+        {/* Dashboard Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Outstanding</p>
+                <p className="text-2xl font-bold text-red-600">₹{totalOutstanding.toLocaleString('en-IN')}</p>
+              </div>
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Active Transports</p>
+                <p className="text-2xl font-bold text-blue-600">{transportOutstanding.length}</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <Truck className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Pending Payments</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {records.filter(r => r.isBalPaid === 'NO').length}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Completed Payments</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {records.filter(r => r.isBalPaid === 'YES').length}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <User className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Transport-wise Outstanding */}
+        <div className="bg-white rounded-lg shadow-md mb-6">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center">
+              <DollarSign className="w-6 h-6 mr-2 text-red-600" />
+              Transport-wise Outstanding Amounts
+            </h2>
+            <p className="text-gray-600 mt-1">Outstanding payments grouped by transport companies</p>
+          </div>
+          <div className="p-6">
+            {transportOutstanding.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {transportOutstanding.map((item, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-gray-800 text-sm">{item.transport}</h3>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        item.outstanding > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                      }`}>
+                        {item.outstanding > 0 ? 'Outstanding' : 'All Paid'}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Outstanding Amount:</span>
+                        <span className={`font-bold ${item.outstanding > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          ₹{item.outstanding.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600">Total Records:</span>
+                        <span className="font-medium">{item.totalRecords}</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600">Pending:</span>
+                        <span className="font-medium text-yellow-600">{item.pendingRecords}</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600">Paid:</span>
+                        <span className="font-medium text-green-600">{item.paidRecords}</span>
+                      </div>
+                      
+                      {/* Progress bar */}
+                      <div className="mt-3">
+                        <div className="flex justify-between text-xs text-gray-600 mb-1">
+                          <span>Payment Progress</span>
+                          <span>{Math.round((item.paidRecords / item.totalRecords) * 100)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(item.paidRecords / item.totalRecords) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Truck className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No transport data available</p>
+                <p className="text-sm text-gray-400">Add some records to see transport-wise outstanding amounts</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Controls */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
