@@ -117,7 +117,31 @@ function App() {
   };
 
   const handleInputChange = (field: keyof TransportRecord, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Auto-calculate total if rate and weight are available and rate is not FIX
+      if (field === 'rate' || field === 'weight') {
+        const rate = field === 'rate' ? value : (newData.rate || '');
+        const weight = field === 'weight' ? value : (newData.weight || '');
+        
+        // Check if rate contains "FIX" (case insensitive)
+        const isFixedRate = rate.toLowerCase().includes('fix');
+        
+        if (!isFixedRate && rate && weight) {
+          // Extract numeric values for calculation
+          const numericRate = parseFloat(rate.replace(/[^0-9.]/g, ''));
+          const numericWeight = parseFloat(weight.replace(/[^0-9.]/g, ''));
+          
+          if (!isNaN(numericRate) && !isNaN(numericWeight)) {
+            const calculatedTotal = (numericRate * numericWeight).toFixed(2);
+            newData.total = calculatedTotal;
+          }
+        }
+      }
+      
+      return newData;
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -427,8 +451,11 @@ function App() {
                           value={formData.rate || ''}
                           onChange={(e) => handleInputChange('rate', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="e.g., FIX+RTO"
+                          placeholder="e.g., FIX+RTO or 1500"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Use "FIX" for fixed rates, or enter numeric value for calculation
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -478,15 +505,31 @@ function App() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Total Amount</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Total Amount
+                          {formData.rate && formData.rate.toLowerCase().includes('fix') && (
+                            <span className="text-red-500 ml-1">*</span>
+                          )}
+                        </label>
                         <input
                           type="number"
                           step="0.01"
                           value={formData.total || ''}
                           onChange={(e) => handleInputChange('total', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                            formData.rate && !formData.rate.toLowerCase().includes('fix') 
+                              ? 'bg-gray-100 cursor-not-allowed' 
+                              : ''
+                          }`}
+                          readOnly={formData.rate && !formData.rate.toLowerCase().includes('fix')}
                           required
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formData.rate && formData.rate.toLowerCase().includes('fix') 
+                            ? 'Enter total amount manually for fixed rates'
+                            : 'Auto-calculated from weight × rate'
+                          }
+                        </p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Freight Amount</label>
