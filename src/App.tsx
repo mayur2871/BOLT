@@ -37,9 +37,16 @@ const App: React.FC = () => {
   const { savedTrucks, savedTransports, addTruck, addTransport } = useSavedOptions();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isTransportFormOpen, setIsTransportFormOpen] = useState(false);
+  const [isVehicleFormOpen, setIsVehicleFormOpen] = useState(false);
+  const [isDestinationFormOpen, setIsDestinationFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<TransportRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState<Partial<TransportRecord>>({});
+  const [newTransport, setNewTransport] = useState('');
+  const [newVehicle, setNewVehicle] = useState('');
+  const [newDestination, setNewDestination] = useState('');
+  const [savedDestinations, setSavedDestinations] = useState<string[]>([]);
 
   const resetForm = () => {
     setFormData({});
@@ -47,6 +54,57 @@ const App: React.FC = () => {
     setIsFormOpen(false);
   };
 
+  const resetTransportForm = () => {
+    setNewTransport('');
+    setIsTransportFormOpen(false);
+  };
+
+  const resetVehicleForm = () => {
+    setNewVehicle('');
+    setIsVehicleFormOpen(false);
+  };
+
+  const resetDestinationForm = () => {
+    setNewDestination('');
+    setIsDestinationFormOpen(false);
+  };
+
+  const handleAddTransport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newTransport.trim()) {
+      try {
+        await addTransport(newTransport.trim());
+        resetTransportForm();
+      } catch (error) {
+        console.error('Error adding transport:', error);
+      }
+    }
+  };
+
+  const handleAddVehicle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newVehicle.trim()) {
+      try {
+        await addTruck(newVehicle.trim());
+        resetVehicleForm();
+      } catch (error) {
+        console.error('Error adding vehicle:', error);
+      }
+    }
+  };
+
+  const handleAddDestination = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newDestination.trim()) {
+      try {
+        // Add to local state for now - you can extend this to save to database
+        setSavedDestinations(prev => [...new Set([...prev, newDestination.trim()])].sort());
+        resetDestinationForm();
+      } catch (error) {
+        console.error('Error adding destination:', error);
+      }
+    }
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -121,6 +179,11 @@ const App: React.FC = () => {
   const completedPayments = records.filter(record => record.isbalpaid?.toLowerCase() === 'yes').length;
 
   // Calculate transport-wise outstanding
+  useEffect(() => {
+    const destinations = [...new Set(records.map(r => r.destination).filter(Boolean))];
+    setSavedDestinations(prev => [...new Set([...prev, ...destinations])].sort());
+  }, [records]);
+
   const transportOutstanding = records.reduce((acc, record) => {
     if (!record.transport) return acc;
     
@@ -201,13 +264,36 @@ const App: React.FC = () => {
               <Truck className="h-8 w-8 text-blue-600" />
               <h1 className="text-2xl font-bold text-gray-900">Transport Management</h1>
             </div>
-            <button
-              onClick={() => setIsFormOpen(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add Record</span>
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setIsTransportFormOpen(true)}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Transport</span>
+              </button>
+              <button
+                onClick={() => setIsVehicleFormOpen(true)}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Vehicle</span>
+              </button>
+              <button
+                onClick={() => setIsDestinationFormOpen(true)}
+                className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Destination</span>
+              </button>
+              <button
+                onClick={() => setIsFormOpen(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Record</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -476,10 +562,16 @@ const App: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
                     <input
                       type="text"
+                      list="destinations"
                       value={formData.destination || ''}
                       onChange={(e) => setFormData({...formData, destination: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
+                    <datalist id="destinations">
+                      {savedDestinations.map(destination => (
+                        <option key={destination} value={destination} />
+                      ))}
+                    </datalist>
                   </div>
 
                   <div>
@@ -693,6 +785,162 @@ const App: React.FC = () => {
                   >
                     <Save className="h-4 w-4" />
                     <span>{editingRecord ? 'Update' : 'Save'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transport Form Modal */}
+      {isTransportFormOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Add New Transport Company</h2>
+                <button
+                  onClick={resetTransportForm}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddTransport} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Transport Company Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newTransport}
+                    onChange={(e) => setNewTransport(e.target.value)}
+                    placeholder="e.g., SHARMA RAJESH ROADWAYS"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={resetTransportForm}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center space-x-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>Add Transport</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vehicle Form Modal */}
+      {isVehicleFormOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Add New Vehicle</h2>
+                <button
+                  onClick={resetVehicleForm}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddVehicle} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Vehicle/Truck Number
+                  </label>
+                  <input
+                    type="text"
+                    value={newVehicle}
+                    onChange={(e) => setNewVehicle(e.target.value)}
+                    placeholder="e.g., GJ12BV6733"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={resetVehicleForm}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center space-x-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>Add Vehicle</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Destination Form Modal */}
+      {isDestinationFormOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Add New Destination</h2>
+                <button
+                  onClick={resetDestinationForm}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddDestination} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Destination Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newDestination}
+                    onChange={(e) => setNewDestination(e.target.value)}
+                    placeholder="e.g., BAGODARA - LAKHPAT"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={resetDestinationForm}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 flex items-center space-x-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>Add Destination</span>
                   </button>
                 </div>
               </form>
