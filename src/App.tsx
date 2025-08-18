@@ -46,6 +46,7 @@ const App: React.FC = () => {
   const [newTransport, setNewTransport] = useState('');
   const [newVehicle, setNewVehicle] = useState('');
   const [newDestination, setNewDestination] = useState('');
+  const [vehicleError, setVehicleError] = useState('');
   const [savedDestinations, setSavedDestinations] = useState<string[]>([]);
 
   const resetForm = () => {
@@ -61,6 +62,7 @@ const App: React.FC = () => {
 
   const resetVehicleForm = () => {
     setNewVehicle('');
+    setVehicleError('');
     setIsVehicleFormOpen(false);
   };
 
@@ -83,12 +85,21 @@ const App: React.FC = () => {
 
   const handleAddVehicle = async (e: React.FormEvent) => {
     e.preventDefault();
+    setVehicleError('');
+    
     if (newVehicle.trim()) {
       try {
         await addTruck(newVehicle.trim());
         resetVehicleForm();
       } catch (error) {
         console.error('Error adding vehicle:', error);
+        
+        // Check if it's a duplicate key error
+        if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+          setVehicleError('Vehicle with this number already exists.');
+        } else {
+          setVehicleError('Failed to add vehicle. Please try again.');
+        }
       }
     }
   };
@@ -273,7 +284,10 @@ const App: React.FC = () => {
                 <span>Add Transport</span>
               </button>
               <button
-                onClick={() => setIsVehicleFormOpen(true)}
+                onClick={() => {
+                  setVehicleError('');
+                  setIsVehicleFormOpen(true);
+                }}
                 className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
               >
                 <Plus className="h-4 w-4" />
@@ -874,6 +888,12 @@ const App: React.FC = () => {
                     required
                   />
                 </div>
+
+                {vehicleError && (
+                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                    {vehicleError}
+                  </div>
+                )}
 
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
