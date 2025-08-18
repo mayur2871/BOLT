@@ -49,6 +49,39 @@ const App: React.FC = () => {
   const [vehicleError, setVehicleError] = useState('');
   const [savedDestinations, setSavedDestinations] = useState<string[]>([]);
 
+  // Generate next SR NO based on selected date
+  const generateSrNo = (selectedDate: string) => {
+    if (!selectedDate) return '';
+    
+    const date = new Date(selectedDate);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${day}/${month}/${year}`;
+    
+    // Find records with the same date
+    const sameDate = records.filter(record => record.smsdate === dateStr);
+    const nextNumber = sameDate.length + 1;
+    
+    return nextNumber.toString();
+  };
+
+  // Format date for display (DD/MM/YYYY)
+  const formatDateForDisplay = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Convert display date to input format (YYYY-MM-DD)
+  const convertToInputDate = (displayDate: string) => {
+    if (!displayDate) return '';
+    const [day, month, year] = displayDate.split('/');
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  };
   const resetForm = () => {
     setFormData({});
     setEditingRecord(null);
@@ -176,6 +209,48 @@ const App: React.FC = () => {
     }
   }, [formData.weight, formData.rate]);
 
+  // Auto-generate SR NO when SMS date changes (only for new records)
+  useEffect(() => {
+    if (!editingRecord && formData.smsdate) {
+      const newSrNo = generateSrNo(convertToInputDate(formData.smsdate));
+      setFormData(prev => ({ ...prev, srno: newSrNo }));
+    }
+  }, [formData.smsdate, editingRecord, records]);
+
+  // Calculate freight amount: Total - Bilty Charge
+  useEffect(() => {
+    const total = parseFloat(formData.total?.replace(/[^\d.]/g, '') || '0');
+    const biltyCharge = parseFloat(formData.biltycharge?.replace(/[^\d.]/g, '') || '0');
+    
+    if (total > 0) {
+      const freightAmount = total - biltyCharge;
+      setFormData(prev => ({ ...prev, freightamount: freightAmount.toString() }));
+    }
+  }, [formData.total, formData.biltycharge]);
+
+  // Calculate net amount: Freight Amount - Balance Paid Amount - Commission - Advance
+  useEffect(() => {
+    const freightAmount = parseFloat(formData.freightamount?.replace(/[^\d.]/g, '') || '0');
+    const balPaidAmount = parseFloat(formData.balpaidamount?.replace(/[^\d.]/g, '') || '0');
+    const commission = parseFloat(formData.commission?.replace(/[^\d.]/g, '') || '0');
+    const advance = parseFloat(formData.advance?.replace(/[^\d.]/g, '') || '0');
+    
+    if (freightAmount > 0) {
+      const netAmount = freightAmount - balPaidAmount - commission - advance;
+      setFormData(prev => ({ ...prev, netamount: netAmount.toString() }));
+    }
+  }, [formData.freightamount, formData.balpaidamount, formData.commission, formData.advance]);
+
+  // Calculate total holding amount: Day in Hold * Holding Charge
+  useEffect(() => {
+    const dayInHold = parseFloat(formData.dayinhold?.replace(/[^\d.]/g, '') || '0');
+    const holdingCharge = parseFloat(formData.holdingcharge?.replace(/[^\d.]/g, '') || '0');
+    
+    if (dayInHold > 0 && holdingCharge > 0) {
+      const totalHoldingAmount = dayInHold * holdingCharge;
+      setFormData(prev => ({ ...prev, totalholdingamount: totalHoldingAmount.toString() }));
+    }
+  }, [formData.dayinhold, formData.holdingcharge]);
   // Calculate dashboard statistics
   const totalOutstanding = records
     .filter(record => record.isbalpaid?.toLowerCase() !== 'yes')
@@ -501,21 +576,29 @@ const App: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Sr No</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Sr No {!editingRecord && <span className="text-green-600">(Auto-generated)</span>}
+                    </label>
                     <input
                       type="text"
                       value={formData.srno || ''}
                       onChange={(e) => setFormData({...formData, srno: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      readOnly={!editingRecord}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        !editingRecord ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">SMS Date</label>
                     <input
-                      type="text"
-                      value={formData.smsdate || ''}
-                      onChange={(e) => setFormData({...formData, smsdate: e.target.value})}
+                      type="date"
+                      value={convertToInputDate(formData.smsdate || '')}
+                      onChange={(e) => {
+                        const displayDate = formatDateForDisplay(e.target.value);
+                        setFormData({...formData, smsdate: displayDate});
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -523,9 +606,12 @@ const App: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">LR Date</label>
                     <input
-                      type="text"
-                      value={formData.lrdate || ''}
-                      onChange={(e) => setFormData({...formData, lrdate: e.target.value})}
+                      type="date"
+                      value={convertToInputDate(formData.lrdate || '')}
+                      onChange={(e) => {
+                        const displayDate = formatDateForDisplay(e.target.value);
+                        setFormData({...formData, lrdate: displayDate});
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -642,13 +728,19 @@ const App: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Freight Amount</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Freight Amount <span className="text-green-600">(Auto-calculated)</span>
+                    </label>
                     <input
                       type="text"
                       value={formData.freightamount || ''}
                       onChange={(e) => setFormData({...formData, freightamount: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-100 cursor-not-allowed"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Calculated as: Total Amount - Bilty Charge
+                    </p>
                   </div>
 
                   <div>
@@ -664,9 +756,12 @@ const App: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Advance Date</label>
                     <input
-                      type="text"
-                      value={formData.advancedate || ''}
-                      onChange={(e) => setFormData({...formData, advancedate: e.target.value})}
+                      type="date"
+                      value={convertToInputDate(formData.advancedate || '')}
+                      onChange={(e) => {
+                        const displayDate = formatDateForDisplay(e.target.value);
+                        setFormData({...formData, advancedate: displayDate});
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -694,21 +789,30 @@ const App: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Balance Paid Date</label>
                     <input
-                      type="text"
-                      value={formData.balpaiddate || ''}
-                      onChange={(e) => setFormData({...formData, balpaiddate: e.target.value})}
+                      type="date"
+                      value={convertToInputDate(formData.balpaiddate || '')}
+                      onChange={(e) => {
+                        const displayDate = formatDateForDisplay(e.target.value);
+                        setFormData({...formData, balpaiddate: displayDate});
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Net Amount</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Net Amount <span className="text-green-600">(Auto-calculated)</span>
+                    </label>
                     <input
                       type="text"
                       value={formData.netamount || ''}
                       onChange={(e) => setFormData({...formData, netamount: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-100 cursor-not-allowed"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Calculated as: Freight Amount - Balance Paid - Commission - Advance
+                    </p>
                   </div>
 
                   <div>
@@ -727,9 +831,12 @@ const App: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Date of Reach</label>
                     <input
-                      type="text"
-                      value={formData.dateofreach || ''}
-                      onChange={(e) => setFormData({...formData, dateofreach: e.target.value})}
+                      type="date"
+                      value={convertToInputDate(formData.dateofreach || '')}
+                      onChange={(e) => {
+                        const displayDate = formatDateForDisplay(e.target.value);
+                        setFormData({...formData, dateofreach: displayDate});
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -737,9 +844,12 @@ const App: React.FC = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Date of Unload</label>
                     <input
-                      type="text"
-                      value={formData.dateofunload || ''}
-                      onChange={(e) => setFormData({...formData, dateofunload: e.target.value})}
+                      type="date"
+                      value={convertToInputDate(formData.dateofunload || '')}
+                      onChange={(e) => {
+                        const displayDate = formatDateForDisplay(e.target.value);
+                        setFormData({...formData, dateofunload: displayDate});
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -765,21 +875,30 @@ const App: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Holding Amount</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Total Holding Amount <span className="text-green-600">(Auto-calculated)</span>
+                    </label>
                     <input
                       type="text"
                       value={formData.totalholdingamount || ''}
                       onChange={(e) => setFormData({...formData, totalholdingamount: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-100 cursor-not-allowed"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Calculated as: Day in Hold × Holding Charge
+                    </p>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Courier Date</label>
                     <input
-                      type="text"
-                      value={formData.courierdate || ''}
-                      onChange={(e) => setFormData({...formData, courierdate: e.target.value})}
+                      type="date"
+                      value={convertToInputDate(formData.courierdate || '')}
+                      onChange={(e) => {
+                        const displayDate = formatDateForDisplay(e.target.value);
+                        setFormData({...formData, courierdate: displayDate});
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
