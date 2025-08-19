@@ -48,22 +48,39 @@ const App: React.FC = () => {
   const [newDestination, setNewDestination] = useState('');
   const [vehicleError, setVehicleError] = useState('');
   const [savedDestinations, setSavedDestinations] = useState<string[]>([]);
+  const [selectedTransportForPayment, setSelectedTransportForPayment] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState('');
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
-  // Generate next SR NO based on selected date
-  const generateSrNo = (selectedDate: string) => {
-    if (!selectedDate) return '';
+  // Generate next SR NO based on total records + 1
+  const generateSrNo = () => {
+    return (records.length + 1).toString();
+  };
+
+  // Calculate days in hold automatically
+  const calculateDaysInHold = (lrDate: string, dateOfReach: string, dateOfUnload: string) => {
+    if (!lrDate || !dateOfReach || !dateOfUnload) return '';
     
-    const date = new Date(selectedDate);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const dateStr = `${day}/${month}/${year}`;
-    
-    // Find records with the same date
-    const sameDate = records.filter(record => record.smsdate === dateStr);
-    const nextNumber = sameDate.length + 1;
-    
-    return nextNumber.toString();
+    try {
+      const lr = new Date(convertToInputDate(lrDate));
+      const reach = new Date(convertToInputDate(dateOfReach));
+      const unload = new Date(convertToInputDate(dateOfUnload));
+      
+      // Calculate days from LR date to reach date (loading hold)
+      const loadingDays = Math.max(0, Math.ceil((reach.getTime() - lr.getTime()) / (1000 * 60 * 60 * 24)));
+      
+      // Calculate days from reach date to unload date (unloading hold)
+      const unloadingDays = Math.max(0, Math.ceil((unload.getTime() - reach.getTime()) / (1000 * 60 * 60 * 24)));
+      
+      // Total days in hold
+      const totalDays = loadingDays + unloadingDays;
+      
+      return totalDays.toString();
+    } catch (error) {
+      console.error('Error calculating days in hold:', error);
+      return '';
+    }
   };
 
   // Format date for display (DD/MM/YYYY)
@@ -104,6 +121,56 @@ const App: React.FC = () => {
     setIsDestinationFormOpen(false);
   };
 
+  const resetPaymentForm = () => {
+    setSelectedTransportForPayment(null);
+    setPaymentAmount('');
+    setPaymentDate('');
+    setIsPaymentModalOpen(false);
+  };
+
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTransportForPayment || !paymentAmount || !paymentDate) return;
+
+    try {
+      // Find all unpaid records for this transport
+      const unpaidRecords = records.filter(record => 
+        record.transport === selectedTransportForPayment && 
+        record.isbalpaid?.toLowerCase() !== 'yes'
+      );
+
+      let remainingPayment = parseFloat(paymentAmount);
+      const displayDate = formatDateForDisplay(paymentDate);
+
+      // Update records with payment
+      for (const record of unpaidRecords) {
+        if (remainingPayment <= 0) break;
+
+        const netAmount = parseFloat(record.netamount?.replace(/[^\d.]/g, '') || '0');
+        const currentBalPaid = parseFloat(record.balpaidamount?.replace(/[^\d.]/g, '') || '0');
+        const outstanding = netAmount - currentBalPaid;
+
+        if (outstanding > 0) {
+          const paymentForThisRecord = Math.min(remainingPayment, outstanding);
+          const newBalPaid = currentBalPaid + paymentForThisRecord;
+          
+          await updateRecord(record.id, {
+            balpaidamount: newBalPaid.toString(),
+            balpaiddate: displayDate,
+            isbalpaid: newBalPaid >= netAmount ? 'Yes' : 'No'
+          });
+
+          remainingPayment -= paymentForThisRecord;
+        }
+      }
+
+      resetPaymentForm();
+      alert(`Payment of ₹${paymentAmount} has been applied to ${selectedTransportForPayment}`);
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      alert('Error processing payment. Please try again.');
+    }
+  };
   const handleAddTransport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newTransport.trim()) {
@@ -209,14 +276,21 @@ const App: React.FC = () => {
     }
   }, [formData.weight, formData.rate]);
 
-  // Auto-generate SR NO when SMS date changes (only for new records)
+  // Auto-generate SR NO for new records
   useEffect(() => {
-    if (!editingRecord && formData.smsdate) {
-      const newSrNo = generateSrNo(convertToInputDate(formData.smsdate));
+    if (!editingRecord) {
+      const newSrNo = generateSrNo();
       setFormData(prev => ({ ...prev, srno: newSrNo }));
     }
-  }, [formData.smsdate, editingRecord, records]);
+  }, [editingRecord, records]);
 
+  // Auto-calculate days in hold when dates change
+  useEffect(() => {
+    if (formData.lrdate && formData.dateofreach && formData.dateofunload) {
+      const daysInHold = calculateDaysInHold(formData.lrdate, formData.dateofreach, formData.dateofunload);
+      setFormData(prev => ({ ...prev, dayinhold: daysInHold }));
+    }
+  }, [formData.lrdate, formData.dateofreach, formData.dateofunload]);
   // Calculate freight amount: Total - Bilty Charge
   useEffect(() => {
     const total = parseFloat(formData.total?.replace(/[^\d.]/g, '') || '0');
@@ -462,6 +536,17 @@ const App: React.FC = () => {
                   <div className="text-sm text-gray-600 space-y-1">
                     <p>Total Records: {data.totalRecords}</p>
                     <p>Pending: {data.pendingRecords} | Paid: {data.paidRecords}</p>
+                    {data.outstanding > 0 && (
+                      <button
+                        onClick={() => {
+                          setSelectedTransportForPayment(transport);
+                          setIsPaymentModalOpen(true);
+                        }}
+                        className="mt-2 w-full bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors"
+                      >
+                        Add Payment
+                      </button>
+                    )}
                   </div>
                   <div className="mt-3">
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -854,14 +939,18 @@ const App: React.FC = () => {
                     />
                   </div>
 
-                  <div>
+                      Day in Hold <span className="text-green-600">(Auto-calculated)</span>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Day in Hold</label>
                     <input
                       type="text"
                       value={formData.dayinhold || ''}
                       onChange={(e) => setFormData({...formData, dayinhold: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-100 cursor-not-allowed"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Calculated from LR Date to Reach Date + Reach Date to Unload Date
+                    </p>
                   </div>
 
                   <div>
@@ -1080,6 +1169,106 @@ const App: React.FC = () => {
                   >
                     <Save className="h-4 w-4" />
                     <span>Add Destination</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {isPaymentModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Add Payment Receipt</h2>
+                <button
+                  onClick={resetPaymentForm}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handlePaymentSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Transport Company
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedTransportForPayment || ''}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Outstanding Amount
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedTransportForPayment ? 
+                      formatCurrency(transportOutstanding[selectedTransportForPayment]?.outstanding || 0) : ''}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Amount *
+                  </label>
+                  <input
+                    type="number"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder="Enter payment amount"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">Payment Distribution</h4>
+                  <p className="text-sm text-blue-700">
+                    Payment will be automatically distributed across unpaid records for this transport company, 
+                    starting with the oldest records first.
+                  </p>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={resetPaymentForm}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center space-x-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>Process Payment</span>
                   </button>
                 </div>
               </form>
