@@ -991,7 +991,6 @@ const App: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
-                </div>
               </form>
 
                 <div className="flex justify-end space-x-3 pt-6 border-t">
