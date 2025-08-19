@@ -992,6 +992,7 @@ const App: React.FC = () => {
                     />
                   </div>
                 </div>
+              </form>
 
                 <div className="flex justify-end space-x-3 pt-6 border-t">
                   <button
