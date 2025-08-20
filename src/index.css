@@ -74,6 +74,20 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Force uppercase for all text inputs */
+input[type="text"],
+input[type="search"],
+select,
+textarea {
+  text-transform: uppercase;
+}
+
+/* Ensure placeholder text is also uppercase */
+input::placeholder,
+textarea::placeholder {
+  text-transform: uppercase;
+}
+
 /* Card hover effects */
 .data-card {
   transition: all 0.2s ease-in-out;
