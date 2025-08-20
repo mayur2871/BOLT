@@ -68,7 +68,7 @@ export function useSavedOptions() {
 
   // Extract unique options from existing records
   const updateOptionsFromRecords = async (records: any[]) => {
-    const trucks = [...new Set(records.map(r => r.truck_no).filter(Boolean))];
+    const trucks = [...new Set(records.map(r => r.truckno).filter(Boolean))];
     const transports = [...new Set(records.map(r => r.transport).filter(Boolean))];
 
     // Add any new trucks that aren't already saved
