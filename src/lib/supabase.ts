@@ -41,7 +41,6 @@ export type Database = {
           totalholdingamount: string | null;
           courierdate: string | null;
           created_at: string | null;
-          extra_deductions: string | null;
         };
         Insert: {
           id?: string;
@@ -71,7 +70,6 @@ export type Database = {
           totalholdingamount?: string | null;
           courierdate?: string | null;
           created_at?: string;
-          extra_deductions?: string | null;
         };
         Update: {
           id?: string;
@@ -101,7 +99,6 @@ export type Database = {
           totalholdingamount?: string | null;
           courierdate?: string | null;
           created_at?: string;
-          extra_deductions?: string | null;
         };
       };
       saved_trucks: {
