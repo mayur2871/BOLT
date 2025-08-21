@@ -237,7 +237,7 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
         <div className="form-section">
           <h3>
             <DollarSign className="w-5 h-5 mr-2" />
-            ₹ Financial Information
+            Financial Information
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <InputField
