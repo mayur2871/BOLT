@@ -9,6 +9,7 @@ interface InputFieldProps {
   required?: boolean;
   className?: string;
   list?: string;
+  readOnly?: boolean;
 }
 
 export function InputField({
@@ -19,7 +20,8 @@ export function InputField({
   placeholder,
   required = false,
   className = '',
-  list
+  list,
+  readOnly = false
 }: InputFieldProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let newValue = e.target.value;
@@ -45,6 +47,7 @@ export function InputField({
         placeholder={placeholder?.toUpperCase()}
         required={required}
         list={list}
+        readOnly={readOnly}
         className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       />
     </div>

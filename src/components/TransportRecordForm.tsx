@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { Truck, Package, MapPin, Calendar, DollarSign, FileText, Clock, Send } from 'lucide-react';
 import { InputField } from './InputField';
 import { SelectField } from './SelectField';
@@ -6,6 +7,7 @@ import { TextAreaField } from './TextAreaField';
 import { useTransportRecords } from '../hooks/useTransportRecords';
 import { useSavedOptions } from '../hooks/useSavedOptions';
 import { transformFormDataToUppercase } from '../utils/textTransform';
+import { getDaysDifference } from '../utils/dateUtils';
 
 interface TransportRecordFormProps {
   onRecordAdded?: () => void;
@@ -70,8 +72,58 @@ const initialFormData: FormData = {
 export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps) {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { addRecord } = useTransportRecords();
+  const { addRecord, records } = useTransportRecords();
   const { savedTrucks, savedTransports, addTruck, addTransport } = useSavedOptions();
+
+  // Auto-generate SR No based on existing records
+  useEffect(() => {
+    if (records.length > 0) {
+      const maxSrNo = Math.max(...records.map(r => parseInt(r.srno || '0')).filter(n => !isNaN(n)));
+      setFormData(prev => ({ ...prev, srno: (maxSrNo + 1).toString() }));
+    } else {
+      setFormData(prev => ({ ...prev, srno: '1' }));
+    }
+  }, [records]);
+
+  // Auto-calculate Total Amount (Weight × Rate)
+  useEffect(() => {
+    const weight = parseFloat(formData.weight) || 0;
+    const rate = parseFloat(formData.rate) || 0;
+    const total = weight * rate;
+    
+    if (total > 0) {
+      setFormData(prev => ({ ...prev, total: total.toString() }));
+    }
+  }, [formData.weight, formData.rate]);
+
+  // Auto-calculate Net Amount (Freight Amount - Balance Paid - Commission - Advance)
+  useEffect(() => {
+    const freightAmount = parseFloat(formData.freightamount) || parseFloat(formData.total) || 0;
+    const balancePaid = parseFloat(formData.balpaidamount) || 0;
+    const commission = parseFloat(formData.commission) || 0;
+    const advance = parseFloat(formData.advance) || 0;
+    
+    const netAmount = freightAmount - balancePaid - commission - advance;
+    
+    setFormData(prev => ({ ...prev, netamount: netAmount.toString() }));
+  }, [formData.freightamount, formData.total, formData.balpaidamount, formData.commission, formData.advance]);
+
+  // Auto-calculate Days in Hold (LR Date to Date of Unload)
+  useEffect(() => {
+    if (formData.lrdate && formData.dateofunload) {
+      const days = getDaysDifference(formData.lrdate, formData.dateofunload);
+      setFormData(prev => ({ ...prev, dayinhold: days.toString() }));
+    }
+  }, [formData.lrdate, formData.dateofunload]);
+
+  // Auto-calculate Total Holding Amount (Days in Hold × Holding Charge)
+  useEffect(() => {
+    const daysInHold = parseFloat(formData.dayinhold) || 0;
+    const holdingCharge = parseFloat(formData.holdingcharge) || 0;
+    const totalHoldingAmount = daysInHold * holdingCharge;
+    
+    setFormData(prev => ({ ...prev, totalholdingamount: totalHoldingAmount.toString() }));
+  }, [formData.dayinhold, formData.holdingcharge]);
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -136,6 +188,7 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
               value={formData.srno}
               onChange={(value) => handleInputChange('srno', value)}
               placeholder="Enter serial number"
+              readOnly={true}
             />
             <InputField
               label="SMS Date"
@@ -222,6 +275,7 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
               type="number"
               placeholder="Enter total amount"
               required
+              readOnly={true}
             />
             <InputField
               label="Bilty Charge"
@@ -298,6 +352,7 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
               onChange={(value) => handleInputChange('netamount', value)}
               type="number"
               placeholder="Enter net amount"
+              readOnly={true}
             />
             <SelectField
               label="Is Balance Paid"
@@ -334,6 +389,7 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
               onChange={(value) => handleInputChange('dayinhold', value)}
               type="number"
               placeholder="Enter days in hold"
+              readOnly={true}
             />
             <InputField
               label="Courier Date"
@@ -364,6 +420,7 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
               onChange={(value) => handleInputChange('totalholdingamount', value)}
               type="number"
               placeholder="Enter total holding amount"
+              readOnly={true}
             />
           </div>
         </div>
