@@ -74,6 +74,16 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Read-only input styling */
+input[readonly] {
+  @apply bg-gray-100 text-gray-700 cursor-not-allowed;
+}
+
+input[readonly]:focus {
+  @apply ring-1 ring-gray-300;
+  box-shadow: none;
+}
+
 /* Force uppercase for all text inputs */
 input[type="text"],
 input[type="search"],

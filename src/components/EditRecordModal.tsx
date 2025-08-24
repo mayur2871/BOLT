@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Save, Truck } from 'lucide-react';
 import { InputField } from './InputField';
 import { SelectField } from './SelectField';
 import { useTransportRecords } from '../hooks/useTransportRecords';
 import { useSavedOptions } from '../hooks/useSavedOptions';
 import { transformFormDataToUppercase } from '../utils/textTransform';
+import { getDaysDifference } from '../utils/dateUtils';
 import type { Database } from '../lib/supabase';
 
 type TransportRecord = Database['public']['Tables']['transport_records']['Row'];
@@ -47,6 +48,46 @@ export function EditRecordModal({ record, onClose, onSave }: EditRecordModalProp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { updateRecord } = useTransportRecords();
   const { savedTrucks, savedTransports, addTruck, addTransport } = useSavedOptions();
+
+  // Auto-calculate Total Amount (Weight × Rate)
+  useEffect(() => {
+    const weight = parseFloat(formData.weight) || 0;
+    const rate = parseFloat(formData.rate) || 0;
+    const total = weight * rate;
+    
+    if (total > 0) {
+      setFormData(prev => ({ ...prev, total: total.toString() }));
+    }
+  }, [formData.weight, formData.rate]);
+
+  // Auto-calculate Net Amount (Freight Amount - Balance Paid - Commission - Advance)
+  useEffect(() => {
+    const freightAmount = parseFloat(formData.freightamount) || parseFloat(formData.total) || 0;
+    const balancePaid = parseFloat(formData.balpaidamount) || 0;
+    const commission = parseFloat(formData.commission) || 0;
+    const advance = parseFloat(formData.advance) || 0;
+    
+    const netAmount = freightAmount - balancePaid - commission - advance;
+    
+    setFormData(prev => ({ ...prev, netamount: netAmount.toString() }));
+  }, [formData.freightamount, formData.total, formData.balpaidamount, formData.commission, formData.advance]);
+
+  // Auto-calculate Days in Hold (LR Date to Date of Unload)
+  useEffect(() => {
+    if (formData.lrdate && formData.dateofunload) {
+      const days = getDaysDifference(formData.lrdate, formData.dateofunload);
+      setFormData(prev => ({ ...prev, dayinhold: days.toString() }));
+    }
+  }, [formData.lrdate, formData.dateofunload]);
+
+  // Auto-calculate Total Holding Amount (Days in Hold × Holding Charge)
+  useEffect(() => {
+    const daysInHold = parseFloat(formData.dayinhold) || 0;
+    const holdingCharge = parseFloat(formData.holdingcharge) || 0;
+    const totalHoldingAmount = daysInHold * holdingCharge;
+    
+    setFormData(prev => ({ ...prev, totalholdingamount: totalHoldingAmount.toString() }));
+  }, [formData.dayinhold, formData.holdingcharge]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -112,6 +153,7 @@ export function EditRecordModal({ record, onClose, onSave }: EditRecordModalProp
                 label="SR NO"
                 value={formData.srno}
                 onChange={(value) => handleInputChange('srno', value)}
+                readOnly={true}
               />
               <InputField
                 label="SMS DATE"
@@ -185,6 +227,7 @@ export function EditRecordModal({ record, onClose, onSave }: EditRecordModalProp
                 onChange={(value) => handleInputChange('total', value)}
                 type="number"
                 required
+                readOnly={true}
               />
               <InputField
                 label="ADVANCE"
@@ -224,6 +267,46 @@ export function EditRecordModal({ record, onClose, onSave }: EditRecordModalProp
                 value={formData.netamount}
                 onChange={(value) => handleInputChange('netamount', value)}
                 type="number"
+                readOnly={true}
+              />
+            </div>
+          </div>
+
+          {/* Delivery Information */}
+          <div className="form-section">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">DELIVERY INFORMATION</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <InputField
+                label="DATE OF REACH"
+                value={formData.dateofreach}
+                onChange={(value) => handleInputChange('dateofreach', value)}
+                type="date"
+              />
+              <InputField
+                label="DATE OF UNLOAD"
+                value={formData.dateofunload}
+                onChange={(value) => handleInputChange('dateofunload', value)}
+                type="date"
+              />
+              <InputField
+                label="DAYS IN HOLD"
+                value={formData.dayinhold}
+                onChange={(value) => handleInputChange('dayinhold', value)}
+                type="number"
+                readOnly={true}
+              />
+              <InputField
+                label="HOLDING CHARGE"
+                value={formData.holdingcharge}
+                onChange={(value) => handleInputChange('holdingcharge', value)}
+                type="number"
+              />
+              <InputField
+                label="TOTAL HOLDING AMOUNT"
+                value={formData.totalholdingamount}
+                onChange={(value) => handleInputChange('totalholdingamount', value)}
+                type="number"
+                readOnly={true}
               />
             </div>
           </div>
