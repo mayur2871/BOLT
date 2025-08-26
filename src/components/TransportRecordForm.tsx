@@ -87,12 +87,20 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
 
   // Auto-calculate Total Amount (Weight × Rate)
   useEffect(() => {
+    // Only auto-calculate if rate is not "FIX"
+    if (formData.rate.toUpperCase() === 'FIX') {
+      return; // Don't auto-calculate, allow manual input
+    }
+    
     const weight = parseFloat(formData.weight) || 0;
     const rate = parseFloat(formData.rate) || 0;
     const total = weight * rate;
     
     if (total > 0) {
       setFormData(prev => ({ ...prev, total: total.toString() }));
+    } else if (formData.rate && isNaN(parseFloat(formData.rate))) {
+      // If rate is not a number and not empty, clear the total for manual input
+      setFormData(prev => ({ ...prev, total: '' }));
     }
   }, [formData.weight, formData.rate]);
 
@@ -265,7 +273,8 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
               label="Rate"
               value={formData.rate}
               onChange={(value) => handleInputChange('rate', value)}
-              placeholder="Enter rate"
+              type="text"
+              placeholder="Enter rate or FIX"
               required
             />
             <InputField
@@ -275,7 +284,7 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
               type="number"
               placeholder="Enter total amount"
               required
-              readOnly={true}
+              readOnly={formData.rate.toUpperCase() !== 'FIX'}
             />
             <InputField
               label="Bilty Charge"
