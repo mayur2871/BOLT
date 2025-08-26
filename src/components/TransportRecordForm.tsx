@@ -111,10 +111,10 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
   // Auto-calculate Days in Hold (LR Date to Date of Unload)
   useEffect(() => {
     if (formData.lrdate && formData.dateofunload) {
-      const days = getDaysDifference(formData.lrdate, formData.dateofunload);
+      const days = getDaysDifference(formData.smsdate, formData.lrdate)+getDaysDifference(formData.dateofreach, formData.dateofunload);
       setFormData(prev => ({ ...prev, dayinhold: days.toString() }));
     }
-  }, [formData.lrdate, formData.dateofunload]);
+  }, [formData.lrdate, formData.dateofunload,formData.smsdate,formData.dateofreach]);
 
   // Auto-calculate Total Holding Amount (Days in Hold × Holding Charge)
   useEffect(() => {
@@ -191,7 +191,7 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
               readOnly={true}
             />
             <InputField
-              label="SMS Date"
+              label="SMS Date / Plant Reach Date"
               value={formData.smsdate}
               onChange={(value) => handleInputChange('smsdate', value)}
               type="date"
@@ -296,10 +296,11 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <InputField
               label="Freight Amount"
-              value={formData.freightamount}
+              value={((parseFloat(formData.total) || 0) - (parseFloat(formData.biltycharge) || 0)).toString()}
               onChange={(value) => handleInputChange('freightamount', value)}
               type="number"
-              placeholder="Enter freight amount"
+              readOnly={true}
+              placeholder="Freight amount"
             />
             <InputField
               label="Advance"
@@ -388,7 +389,7 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
               value={formData.dayinhold}
               onChange={(value) => handleInputChange('dayinhold', value)}
               type="number"
-              placeholder="Enter days in hold"
+              placeholder="TOTAL DAYS IN HOLD AT LODING AND UNLOADING POINT"
               readOnly={true}
             />
             <InputField
