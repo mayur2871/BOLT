@@ -10,6 +10,10 @@ interface SelectFieldProps {
   className?: string;
   allowCustom?: boolean;
   onAddNew?: (value: string) => void;
+  name?: string;
+  error?: string;
+  touched?: boolean;
+  onBlur?: (e: React.FocusEvent<HTMLSelectElement | HTMLInputElement>) => void;
 }
 
 export function SelectField({
@@ -21,7 +25,11 @@ export function SelectField({
   required = false,
   className = '',
   allowCustom = false,
-  onAddNew
+  onAddNew,
+  name,
+  error,
+  touched,
+  onBlur
 }: SelectFieldProps) {
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newValue = e.target.value.toUpperCase();
@@ -51,13 +59,19 @@ export function SelectField({
         <div className="relative">
           <input
             type="text"
+            name={name}
             value={value}
             onChange={handleInputChange}
+            onBlur={onBlur}
             onKeyPress={handleKeyPress}
             placeholder={placeholder?.toUpperCase()}
             required={required}
             list={`${label.toLowerCase().replace(/\s+/g, '-')}-options`}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              error && touched 
+                ? 'border-red-500 focus:ring-red-500' 
+                : 'border-gray-300'
+            }`}
           />
           <datalist id={`${label.toLowerCase().replace(/\s+/g, '-')}-options`}>
             {options.map((option, index) => (
@@ -67,10 +81,16 @@ export function SelectField({
         </div>
       ) : (
         <select
+          name={name}
           value={value}
           onChange={handleChange}
+          onBlur={onBlur}
           required={required}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className={`px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+            error && touched 
+              ? 'border-red-500 focus:ring-red-500' 
+              : 'border-gray-300'
+          }`}
         >
           <option value="">{placeholder?.toUpperCase() || 'SELECT OPTION'}</option>
           {options.map((option, index) => (
@@ -85,6 +105,10 @@ export function SelectField({
         <p className="text-xs text-gray-500 mt-1">
           TYPE TO ADD NEW OPTION OR SELECT FROM EXISTING
         </p>
+      )}
+      
+      {error && touched && (
+        <p className="text-red-500 text-xs mt-1">{error}</p>
       )}
     </div>
   );

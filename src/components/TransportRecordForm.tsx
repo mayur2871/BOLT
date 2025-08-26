@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useEffect } from 'react';
+import { Formik, Form } from 'formik';
+import * as yup from 'yup';
 import { Truck, Package, MapPin, Calendar, DollarSign, FileText, Clock, Send } from 'lucide-react';
 import { InputField } from './InputField';
 import { SelectField } from './SelectField';
@@ -13,7 +15,7 @@ interface TransportRecordFormProps {
   onRecordAdded?: () => void;
 }
 
-interface FormData {
+interface FormValues {
   srno: string;
   smsdate: string;
   lrdate: string;
@@ -41,7 +43,7 @@ interface FormData {
   courierdate: string;
 }
 
-const initialFormData: FormData = {
+const initialFormValues: FormValues = {
   srno: '',
   smsdate: '',
   lrdate: '',
@@ -69,94 +71,43 @@ const initialFormData: FormData = {
   courierdate: ''
 };
 
+const validationSchema = yup.object().shape({
+  truckno: yup.string()
+    .matches(/^[A-Z]{2}\d{2}[A-Z]{1,2}\d{4}$/, 'INVALID TRUCK NUMBER FORMAT (E.G., GJ01AB1234)')
+    .required('TRUCK NUMBER IS REQUIRED'),
+  transport: yup.string().required('TRANSPORT IS REQUIRED'),
+  destination: yup.string().required('DESTINATION IS REQUIRED'),
+  weight: yup.string().required('WEIGHT IS REQUIRED'),
+  rate: yup.string().required('RATE IS REQUIRED'),
+  total: yup.string().required('TOTAL IS REQUIRED'),
+  advance: yup.string().required('ADVANCE IS REQUIRED'),
+  commission: yup.string().required('COMMISSION IS REQUIRED'),
+  isbalpaid: yup.string().required('PAYMENT STATUS IS REQUIRED'),
+});
+
 export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps) {
-  const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const { addRecord, records } = useTransportRecords();
   const { savedTrucks, savedTransports, addTruck, addTransport } = useSavedOptions();
 
-  // Auto-generate SR No based on existing records
-  useEffect(() => {
-    if (records.length > 0) {
-      const maxSrNo = Math.max(...records.map(r => parseInt(r.srno || '0')).filter(n => !isNaN(n)));
-      setFormData(prev => ({ ...prev, srno: (maxSrNo + 1).toString() }));
-    } else {
-      setFormData(prev => ({ ...prev, srno: '1' }));
-    }
-  }, [records]);
-
-  // Auto-calculate Total Amount (Weight × Rate)
-  useEffect(() => {
-    // Only auto-calculate if rate is not "FIX"
-    if (formData.rate.toUpperCase() === 'FIX') {
-      return; // Don't auto-calculate, allow manual input
-    }
-    
-    const weight = parseFloat(formData.weight) || 0;
-    const rate = parseFloat(formData.rate) || 0;
-    const total = weight * rate;
-    
-    if (total > 0) {
-      setFormData(prev => ({ ...prev, total: total.toString() }));
-    } else if (formData.rate && isNaN(parseFloat(formData.rate))) {
-      // If rate is not a number and not empty, clear the total for manual input
-      setFormData(prev => ({ ...prev, total: '' }));
-    }
-  }, [formData.weight, formData.rate]);
-
-  // Auto-calculate Net Amount (Freight Amount - Balance Paid - Commission - Advance)
-  useEffect(() => {
-    const freightAmount = parseFloat(formData.freightamount) || parseFloat(formData.total) || 0;
-    const balancePaid = parseFloat(formData.balpaidamount) || 0;
-    const commission = parseFloat(formData.commission) || 0;
-    const advance = parseFloat(formData.advance) || 0;
-    
-    const netAmount = freightAmount - balancePaid - commission - advance;
-    
-    setFormData(prev => ({ ...prev, netamount: netAmount.toString() }));
-  }, [formData.freightamount, formData.total, formData.balpaidamount, formData.commission, formData.advance]);
-
-  // Auto-calculate Days in Hold (LR Date to Date of Unload)
-  useEffect(() => {
-    if (formData.lrdate && formData.dateofunload) {
-      const days = getDaysDifference(formData.smsdate, formData.lrdate)+getDaysDifference(formData.dateofreach, formData.dateofunload);
-      setFormData(prev => ({ ...prev, dayinhold: days.toString() }));
-    }
-  }, [formData.lrdate, formData.dateofunload,formData.smsdate,formData.dateofreach]);
-
-  // Auto-calculate Total Holding Amount (Days in Hold × Holding Charge)
-  useEffect(() => {
-    const daysInHold = parseFloat(formData.dayinhold) || 0;
-    const holdingCharge = parseFloat(formData.holdingcharge) || 0;
-    const totalHoldingAmount = daysInHold * holdingCharge;
-    
-    setFormData(prev => ({ ...prev, totalholdingamount: totalHoldingAmount.toString() }));
-  }, [formData.dayinhold, formData.holdingcharge]);
-
-  const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const handleSubmit = async (values: FormValues, { setSubmitting, resetForm }: any) => {
+    setSubmitting(true);
 
     try {
-      const transformedData = transformFormDataToUppercase(formData);
+      const transformedData = transformFormDataToUppercase(values);
       await addRecord(transformedData);
       
       // Reset form
-      setFormData(initialFormData);
+      resetForm();
       
       // Notify parent component
       onRecordAdded?.();
       
-      alert('Transport record added successfully!');
+      alert('TRANSPORT RECORD ADDED SUCCESSFULLY!');
     } catch (error) {
       console.error('Error adding record:', error);
-      alert('Failed to add transport record. Please try again.');
+      alert('FAILED TO ADD TRANSPORT RECORD. PLEASE TRY AGAIN.');
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
@@ -177,276 +128,439 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <div className="flex items-center mb-8">
-        <Truck className="w-8 h-8 text-blue-600 mr-3" />
-        <h1 className="text-3xl font-bold text-gray-800">Transport Record Entry</h1>
-      </div>
+    <Formik
+      initialValues={{
+        ...initialFormValues,
+        srno: records.length > 0 
+          ? (Math.max(...records.map(r => parseInt(r.srno || '0')).filter(n => !isNaN(n))) + 1).toString()
+          : '1'
+      }}
+      validationSchema={validationSchema}
+      onSubmit={handleSubmit}
+    >
+      {({ values, handleChange, handleBlur, errors, touched, isSubmitting, setFieldValue }) => {
+        // Auto-calculate Total Amount (Weight × Rate)
+        useEffect(() => {
+          // Only auto-calculate if rate is not "FIX"
+          if (values.rate.toUpperCase() === 'FIX') {
+            return; // Don't auto-calculate, allow manual input
+          }
+          
+          const weight = parseFloat(values.weight) || 0;
+          const rate = parseFloat(values.rate) || 0;
+          const total = weight * rate;
+          
+          if (total > 0) {
+            setFieldValue('total', total.toString());
+          } else if (values.rate && isNaN(parseFloat(values.rate))) {
+            // If rate is not a number and not empty, clear the total for manual input
+            setFieldValue('total', '');
+          }
+        }, [values.weight, values.rate, setFieldValue]);
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Basic Information */}
-        <div className="form-section">
-          <h3>
-            <FileText className="w-5 h-5 mr-2" />
-            Basic Information
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <InputField
-              label="SR NO"
-              value={formData.srno}
-              onChange={(value) => handleInputChange('srno', value)}
-              placeholder="Enter serial number"
-              readOnly={true}
-            />
-            <InputField
-              label="SMS Date / Plant Reach Date"
-              value={formData.smsdate}
-              onChange={(value) => handleInputChange('smsdate', value)}
-              type="date"
-            />
-            <InputField
-              label="LR Date"
-              value={formData.lrdate}
-              onChange={(value) => handleInputChange('lrdate', value)}
-              type="date"
-            />
-            <InputField
-              label="Bilty No"
-              value={formData.biltyno}
-              onChange={(value) => handleInputChange('biltyno', value)}
-              placeholder="Enter bilty number"
-            />
+        // Auto-calculate Net Amount (Freight Amount - Balance Paid - Commission - Advance)
+        useEffect(() => {
+          const freightAmount = parseFloat(values.freightamount) || parseFloat(values.total) || 0;
+          const balancePaid = parseFloat(values.balpaidamount) || 0;
+          const commission = parseFloat(values.commission) || 0;
+          const advance = parseFloat(values.advance) || 0;
+          
+          const netAmount = freightAmount - balancePaid - commission - advance;
+          
+          setFieldValue('netamount', netAmount.toString());
+        }, [values.freightamount, values.total, values.balpaidamount, values.commission, values.advance, setFieldValue]);
+
+        // Auto-calculate Days in Hold (LR Date to Date of Unload)
+        useEffect(() => {
+          if (values.lrdate && values.dateofunload) {
+            const days = getDaysDifference(values.smsdate, values.lrdate) + getDaysDifference(values.dateofreach, values.dateofunload);
+            setFieldValue('dayinhold', days.toString());
+          }
+        }, [values.lrdate, values.dateofunload, values.smsdate, values.dateofreach, setFieldValue]);
+
+        // Auto-calculate Total Holding Amount (Days in Hold × Holding Charge)
+        useEffect(() => {
+          const daysInHold = parseFloat(values.dayinhold) || 0;
+          const holdingCharge = parseFloat(values.holdingcharge) || 0;
+          const totalHoldingAmount = daysInHold * holdingCharge;
+          
+          setFieldValue('totalholdingamount', totalHoldingAmount.toString());
+        }, [values.dayinhold, values.holdingcharge, setFieldValue]);
+
+        return (
+          <div className="max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+            <div className="flex items-center mb-8">
+              <Truck className="w-8 h-8 text-blue-600 mr-3" />
+              <h1 className="text-3xl font-bold text-gray-800">Transport Record Entry</h1>
+            </div>
+
+            <Form className="space-y-8">
+              {/* Basic Information */}
+              <div className="form-section">
+                <h3>
+                  <FileText className="w-5 h-5 mr-2" />
+                  Basic Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <InputField
+                    label="SR NO"
+                    name="srno"
+                    value={values.srno}
+                    onChange={(value) => setFieldValue('srno', value)}
+                    onBlur={handleBlur}
+                    placeholder="Enter serial number"
+                    readOnly={true}
+                    error={errors.srno}
+                    touched={touched.srno}
+                  />
+                  <InputField
+                    label="SMS Date / Plant Reach Date"
+                    name="smsdate"
+                    value={values.smsdate}
+                    onChange={(value) => setFieldValue('smsdate', value)}
+                    onBlur={handleBlur}
+                    type="date"
+                    error={errors.smsdate}
+                    touched={touched.smsdate}
+                  />
+                  <InputField
+                    label="LR Date"
+                    name="lrdate"
+                    value={values.lrdate}
+                    onChange={(value) => setFieldValue('lrdate', value)}
+                    onBlur={handleBlur}
+                    type="date"
+                    error={errors.lrdate}
+                    touched={touched.lrdate}
+                  />
+                  <InputField
+                    label="Bilty No"
+                    name="biltyno"
+                    value={values.biltyno}
+                    onChange={(value) => setFieldValue('biltyno', value)}
+                    onBlur={handleBlur}
+                    placeholder="Enter bilty number"
+                    error={errors.biltyno}
+                    touched={touched.biltyno}
+                  />
+                </div>
+              </div>
+
+              {/* Transport Details */}
+              <div className="form-section">
+                <h3>
+                  <Truck className="w-5 h-5 mr-2" />
+                  Transport Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <SelectField
+                    label="Truck No"
+                    name="truckno"
+                    value={values.truckno}
+                    onChange={(value) => setFieldValue('truckno', value)}
+                    onBlur={handleBlur}
+                    options={savedTrucks}
+                    placeholder="Select or enter truck number"
+                    allowCustom={true}
+                    onAddNew={handleAddTruck}
+                    error={errors.truckno}
+                    touched={touched.truckno}
+                  />
+                  <SelectField
+                    label="Transport"
+                    name="transport"
+                    value={values.transport}
+                    onChange={(value) => setFieldValue('transport', value)}
+                    onBlur={handleBlur}
+                    options={savedTransports}
+                    placeholder="Select or enter transport name"
+                    allowCustom={true}
+                    onAddNew={handleAddTransport}
+                    required
+                    error={errors.transport}
+                    touched={touched.transport}
+                  />
+                  <InputField
+                    label="Destination"
+                    name="destination"
+                    value={values.destination}
+                    onChange={(value) => setFieldValue('destination', value)}
+                    onBlur={handleBlur}
+                    placeholder="Enter destination"
+                    required
+                    error={errors.destination}
+                    touched={touched.destination}
+                  />
+                </div>
+              </div>
+
+              {/* Weight & Rate Information */}
+              <div className="form-section">
+                <h3>
+                  <Package className="w-5 h-5 mr-2" />
+                  Weight & Rate Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <InputField
+                    label="Weight"
+                    name="weight"
+                    value={values.weight}
+                    onChange={(value) => setFieldValue('weight', value)}
+                    onBlur={handleBlur}
+                    placeholder="Enter weight"
+                    required
+                    error={errors.weight}
+                    touched={touched.weight}
+                  />
+                  <InputField
+                    label="Rate"
+                    name="rate"
+                    value={values.rate}
+                    onChange={(value) => setFieldValue('rate', value)}
+                    onBlur={handleBlur}
+                    type="text"
+                    placeholder="Enter rate or FIX"
+                    required
+                    error={errors.rate}
+                    touched={touched.rate}
+                  />
+                  <InputField
+                    label="Total"
+                    name="total"
+                    value={values.total}
+                    onChange={(value) => setFieldValue('total', value)}
+                    onBlur={handleBlur}
+                    type="number"
+                    placeholder="Enter total amount"
+                    required
+                    readOnly={values.rate.toUpperCase() !== 'FIX'}
+                    error={errors.total}
+                    touched={touched.total}
+                  />
+                  <InputField
+                    label="Bilty Charge"
+                    name="biltycharge"
+                    value={values.biltycharge}
+                    onChange={(value) => setFieldValue('biltycharge', value)}
+                    onBlur={handleBlur}
+                    type="number"
+                    placeholder="Enter bilty charge"
+                    error={errors.biltycharge}
+                    touched={touched.biltycharge}
+                  />
+                </div>
+              </div>
+
+              {/* Financial Information */}
+              <div className="form-section">
+                <h3>
+                  <DollarSign className="w-5 h-5 mr-2" />
+                  Financial Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <InputField
+                    label="Freight Amount"
+                    name="freightamount"
+                    value={((parseFloat(values.total) || 0) - (parseFloat(values.biltycharge) || 0)).toString()}
+                    onChange={(value) => setFieldValue('freightamount', value)}
+                    onBlur={handleBlur}
+                    type="number"
+                    readOnly={true}
+                    placeholder="Freight amount"
+                    error={errors.freightamount}
+                    touched={touched.freightamount}
+                  />
+                  <InputField
+                    label="Advance"
+                    name="advance"
+                    value={values.advance}
+                    onChange={(value) => setFieldValue('advance', value)}
+                    onBlur={handleBlur}
+                    type="number"
+                    placeholder="Enter advance amount"
+                    required
+                    error={errors.advance}
+                    touched={touched.advance}
+                  />
+                  <InputField
+                    label="Advance Date"
+                    name="advancedate"
+                    value={values.advancedate}
+                    onChange={(value) => setFieldValue('advancedate', value)}
+                    onBlur={handleBlur}
+                    type="date"
+                    error={errors.advancedate}
+                    touched={touched.advancedate}
+                  />
+                  <InputField
+                    label="Commission"
+                    name="commission"
+                    value={values.commission}
+                    onChange={(value) => setFieldValue('commission', value)}
+                    onBlur={handleBlur}
+                    type="number"
+                    placeholder="Enter commission"
+                    required
+                    error={errors.commission}
+                    touched={touched.commission}
+                  />
+                </div>
+              </div>
+
+              {/* Payment Information */}
+              <div className="form-section">
+                <h3>
+                  <DollarSign className="w-5 h-5 mr-2" />
+                  Payment Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <InputField
+                    label="Balance Paid Amount"
+                    name="balpaidamount"
+                    value={values.balpaidamount}
+                    onChange={(value) => setFieldValue('balpaidamount', value)}
+                    onBlur={handleBlur}
+                    type="number"
+                    placeholder="Enter balance paid amount"
+                    error={errors.balpaidamount}
+                    touched={touched.balpaidamount}
+                  />
+                  <InputField
+                    label="Balance Paid Date"
+                    name="balpaiddate"
+                    value={values.balpaiddate}
+                    onChange={(value) => setFieldValue('balpaiddate', value)}
+                    onBlur={handleBlur}
+                    type="date"
+                    error={errors.balpaiddate}
+                    touched={touched.balpaiddate}
+                  />
+                  <InputField
+                    label="Net Amount"
+                    name="netamount"
+                    value={values.netamount}
+                    onChange={(value) => setFieldValue('netamount', value)}
+                    onBlur={handleBlur}
+                    type="number"
+                    placeholder="Enter net amount"
+                    readOnly={true}
+                    error={errors.netamount}
+                    touched={touched.netamount}
+                  />
+                  <SelectField
+                    label="Is Balance Paid"
+                    name="isbalpaid"
+                    value={values.isbalpaid}
+                    onChange={(value) => setFieldValue('isbalpaid', value)}
+                    onBlur={handleBlur}
+                    options={['YES', 'NO']}
+                    required
+                    error={errors.isbalpaid}
+                    touched={touched.isbalpaid}
+                  />
+                </div>
+              </div>
+
+              {/* Delivery Information */}
+              <div className="form-section">
+                <h3>
+                  <MapPin className="w-5 h-5 mr-2" />
+                  Delivery Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <InputField
+                    label="Date of Reach"
+                    name="dateofreach"
+                    value={values.dateofreach}
+                    onChange={(value) => setFieldValue('dateofreach', value)}
+                    onBlur={handleBlur}
+                    type="date"
+                    error={errors.dateofreach}
+                    touched={touched.dateofreach}
+                  />
+                  <InputField
+                    label="Date of Unload"
+                    name="dateofunload"
+                    value={values.dateofunload}
+                    onChange={(value) => setFieldValue('dateofunload', value)}
+                    onBlur={handleBlur}
+                    type="date"
+                    error={errors.dateofunload}
+                    touched={touched.dateofunload}
+                  />
+                  <InputField
+                    label="Days in Hold"
+                    name="dayinhold"
+                    value={values.dayinhold}
+                    onChange={(value) => setFieldValue('dayinhold', value)}
+                    onBlur={handleBlur}
+                    type="number"
+                    placeholder="TOTAL DAYS IN HOLD AT LODING AND UNLOADING POINT"
+                    readOnly={true}
+                    error={errors.dayinhold}
+                    touched={touched.dayinhold}
+                  />
+                  <InputField
+                    label="Courier Date"
+                    name="courierdate"
+                    value={values.courierdate}
+                    onChange={(value) => setFieldValue('courierdate', value)}
+                    onBlur={handleBlur}
+                    type="date"
+                    error={errors.courierdate}
+                    touched={touched.courierdate}
+                  />
+                </div>
+              </div>
+
+              {/* Holding Charges */}
+              <div className="form-section">
+                <h3>
+                  <Clock className="w-5 h-5 mr-2" />
+                  Holding Charges
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InputField
+                    label="Holding Charge"
+                    name="holdingcharge"
+                    value={values.holdingcharge}
+                    onChange={(value) => setFieldValue('holdingcharge', value)}
+                    onBlur={handleBlur}
+                    type="number"
+                    placeholder="Enter holding charge per day"
+                    error={errors.holdingcharge}
+                    touched={touched.holdingcharge}
+                  />
+                  <InputField
+                    label="Total Holding Amount"
+                    name="totalholdingamount"
+                    value={values.totalholdingamount}
+                    onChange={(value) => setFieldValue('totalholdingamount', value)}
+                    onBlur={handleBlur}
+                    type="number"
+                    placeholder="Enter total holding amount"
+                    readOnly={true}
+                    error={errors.totalholdingamount}
+                    touched={touched.totalholdingamount}
+                  />
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex justify-center pt-6">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn-primary flex items-center space-x-2 px-8 py-3 text-lg"
+                >
+                  <Send className="w-5 h-5" />
+                  <span>{isSubmitting ? 'ADDING RECORD...' : 'ADD TRANSPORT RECORD'}</span>
+                </button>
+              </div>
+            </Form>
           </div>
-        </div>
-
-        {/* Transport Details */}
-        <div className="form-section">
-          <h3>
-            <Truck className="w-5 h-5 mr-2" />
-            Transport Details
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <SelectField
-              label="Truck No"
-              value={formData.truckno}
-              onChange={(value) => handleInputChange('truckno', value)}
-              options={savedTrucks}
-              placeholder="Select or enter truck number"
-              allowCustom={true}
-              onAddNew={handleAddTruck}
-            />
-            <SelectField
-              label="Transport"
-              value={formData.transport}
-              onChange={(value) => handleInputChange('transport', value)}
-              options={savedTransports}
-              placeholder="Select or enter transport name"
-              allowCustom={true}
-              onAddNew={handleAddTransport}
-              required
-            />
-            <InputField
-              label="Destination"
-              value={formData.destination}
-              onChange={(value) => handleInputChange('destination', value)}
-              placeholder="Enter destination"
-              required
-            />
-          </div>
-        </div>
-
-        {/* Weight & Rate Information */}
-        <div className="form-section">
-          <h3>
-            <Package className="w-5 h-5 mr-2" />
-            Weight & Rate Information
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <InputField
-              label="Weight"
-              value={formData.weight}
-              onChange={(value) => handleInputChange('weight', value)}
-              placeholder="Enter weight"
-              required
-            />
-            <InputField
-              label="Rate"
-              value={formData.rate}
-              onChange={(value) => handleInputChange('rate', value)}
-              type="text"
-              placeholder="Enter rate or FIX"
-              required
-            />
-            <InputField
-              label="Total"
-              value={formData.total}
-              onChange={(value) => handleInputChange('total', value)}
-              type="number"
-              placeholder="Enter total amount"
-              required
-              readOnly={formData.rate.toUpperCase() !== 'FIX'}
-            />
-            <InputField
-              label="Bilty Charge"
-              value={formData.biltycharge}
-              onChange={(value) => handleInputChange('biltycharge', value)}
-              type="number"
-              placeholder="Enter bilty charge"
-            />
-          </div>
-        </div>
-
-        {/* Financial Information */}
-        <div className="form-section">
-          <h3>
-            <DollarSign className="w-5 h-5 mr-2" />
-            Financial Information
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <InputField
-              label="Freight Amount"
-              value={((parseFloat(formData.total) || 0) - (parseFloat(formData.biltycharge) || 0)).toString()}
-              onChange={(value) => handleInputChange('freightamount', value)}
-              type="number"
-              readOnly={true}
-              placeholder="Freight amount"
-            />
-            <InputField
-              label="Advance"
-              value={formData.advance}
-              onChange={(value) => handleInputChange('advance', value)}
-              type="number"
-              placeholder="Enter advance amount"
-              required
-            />
-            <InputField
-              label="Advance Date"
-              value={formData.advancedate}
-              onChange={(value) => handleInputChange('advancedate', value)}
-              type="date"
-            />
-            <InputField
-              label="Commission"
-              value={formData.commission}
-              onChange={(value) => handleInputChange('commission', value)}
-              type="number"
-              placeholder="Enter commission"
-              required
-            />
-          </div>
-        </div>
-
-        {/* Payment Information */}
-        <div className="form-section">
-          <h3>
-            <DollarSign className="w-5 h-5 mr-2" />
-            Payment Information
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <InputField
-              label="Balance Paid Amount"
-              value={formData.balpaidamount}
-              onChange={(value) => handleInputChange('balpaidamount', value)}
-              type="number"
-              placeholder="Enter balance paid amount"
-            />
-            <InputField
-              label="Balance Paid Date"
-              value={formData.balpaiddate}
-              onChange={(value) => handleInputChange('balpaiddate', value)}
-              type="date"
-            />
-            <InputField
-              label="Net Amount"
-              value={formData.netamount}
-              onChange={(value) => handleInputChange('netamount', value)}
-              type="number"
-              placeholder="Enter net amount"
-              readOnly={true}
-            />
-            <SelectField
-              label="Is Balance Paid"
-              value={formData.isbalpaid}
-              onChange={(value) => handleInputChange('isbalpaid', value)}
-              options={['YES', 'NO']}
-              required
-            />
-          </div>
-        </div>
-
-        {/* Delivery Information */}
-        <div className="form-section">
-          <h3>
-            <MapPin className="w-5 h-5 mr-2" />
-            Delivery Information
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <InputField
-              label="Date of Reach"
-              value={formData.dateofreach}
-              onChange={(value) => handleInputChange('dateofreach', value)}
-              type="date"
-            />
-            <InputField
-              label="Date of Unload"
-              value={formData.dateofunload}
-              onChange={(value) => handleInputChange('dateofunload', value)}
-              type="date"
-            />
-            <InputField
-              label="Days in Hold"
-              value={formData.dayinhold}
-              onChange={(value) => handleInputChange('dayinhold', value)}
-              type="number"
-              placeholder="TOTAL DAYS IN HOLD AT LODING AND UNLOADING POINT"
-              readOnly={true}
-            />
-            <InputField
-              label="Courier Date"
-              value={formData.courierdate}
-              onChange={(value) => handleInputChange('courierdate', value)}
-              type="date"
-            />
-          </div>
-        </div>
-
-        {/* Holding Charges */}
-        <div className="form-section">
-          <h3>
-            <Clock className="w-5 h-5 mr-2" />
-            Holding Charges
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputField
-              label="Holding Charge"
-              value={formData.holdingcharge}
-              onChange={(value) => handleInputChange('holdingcharge', value)}
-              type="number"
-              placeholder="Enter holding charge per day"
-            />
-            <InputField
-              label="Total Holding Amount"
-              value={formData.totalholdingamount}
-              onChange={(value) => handleInputChange('totalholdingamount', value)}
-              type="number"
-              placeholder="Enter total holding amount"
-              readOnly={true}
-            />
-          </div>
-        </div>
-
-        {/* Submit Button */}
-        <div className="flex justify-center pt-6">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="btn-primary flex items-center space-x-2 px-8 py-3 text-lg"
-          >
-            <Send className="w-5 h-5" />
-            <span>{isSubmitting ? 'ADDING RECORD...' : 'ADD TRANSPORT RECORD'}</span>
-          </button>
-        </div>
-      </form>
-    </div>
+        );
+      }}
+    </Formik>
   );
 }
