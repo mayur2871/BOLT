@@ -40,6 +40,7 @@ export type Database = {
           holdingcharge: string | null;
           totalholdingamount: string | null;
           courierdate: string | null;
+          lump_sum_allocated_amount: number | null;
           created_at: string | null;
         };
         Insert: {
@@ -69,6 +70,7 @@ export type Database = {
           holdingcharge?: string | null;
           totalholdingamount?: string | null;
           courierdate?: string | null;
+          lump_sum_allocated_amount?: number | null;
           created_at?: string;
         };
         Update: {
@@ -98,6 +100,62 @@ export type Database = {
           holdingcharge?: string | null;
           totalholdingamount?: string | null;
           courierdate?: string | null;
+          lump_sum_allocated_amount?: number | null;
+          created_at?: string;
+        };
+      };
+      lump_sum_payments: {
+        Row: {
+          id: string;
+          company_name: string;
+          amount: number;
+          date_received: string | null;
+          notes: string | null;
+          remaining_balance: number;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          company_name: string;
+          amount: number;
+          date_received?: string | null;
+          notes?: string | null;
+          remaining_balance?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_name?: string;
+          amount?: number;
+          date_received?: string | null;
+          notes?: string | null;
+          remaining_balance?: number;
+          created_at?: string;
+        };
+      };
+      payment_allocations: {
+        Row: {
+          id: string;
+          lump_sum_payment_id: string;
+          transport_record_id: string;
+          allocated_amount: number;
+          allocation_date: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          lump_sum_payment_id: string;
+          transport_record_id: string;
+          allocated_amount: number;
+          allocation_date?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          lump_sum_payment_id?: string;
+          transport_record_id?: string;
+          allocated_amount?: number;
+          allocation_date?: string | null;
           created_at?: string;
         };
       };

@@ -89,6 +89,7 @@ export function RecordDetailsModal({ record, onClose }: RecordDetailsModalProps)
                 <DetailRow label="BALANCE PAID AMOUNT" value={record.balpaidamount} />
                 <DetailRow label="BALANCE PAID DATE" value={record.balpaiddate} icon={Calendar} />
                 <DetailRow label="NET AMOUNT" value={record.netamount} />
+                <DetailRow label="LUMP SUM ALLOCATED" value={record.lump_sum_allocated_amount?.toString() || '0'} />
                 <DetailRow 
                   label="IS BALANCE PAID" 
                   value={

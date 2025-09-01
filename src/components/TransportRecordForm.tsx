@@ -164,8 +164,9 @@ export function TransportRecordForm({ onRecordAdded }: TransportRecordFormProps)
           const balancePaid = parseFloat(values.balpaidamount) || 0;
           const commission = parseFloat(values.commission) || 0;
           const advance = parseFloat(values.advance) || 0;
+          const lumpSumAllocated = 0; // New records don't have lump sum allocations yet
           
-          const netAmount = freightAmount - balancePaid - commission - advance;
+          const netAmount = freightAmount - balancePaid - commission - advance - lumpSumAllocated;
           
           setFieldValue('netamount', netAmount.toString());
         }, [values.freightamount, values.total, values.balpaidamount, values.commission, values.advance, setFieldValue]);

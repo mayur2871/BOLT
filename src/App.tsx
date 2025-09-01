@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Truck, List, Plus, BarChart3 } from 'lucide-react';
+import { Truck, List, Plus, BarChart3, DollarSign } from 'lucide-react';
 import { TransportRecordForm } from './components/TransportRecordForm';
 import { RecordsList } from './components/RecordsList';
 import { Dashboard } from './components/Dashboard';
+import { LumpSumManagement } from './components/LumpSumManagement';
 
-type ActiveTab = 'form' | 'records' | 'dashboard';
+type ActiveTab = 'form' | 'records' | 'dashboard' | 'lumpsum';
 
 function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('form');
@@ -74,6 +75,12 @@ function App() {
               isActive={activeTab === 'records'}
             />
             <TabButton
+              tab="lumpsum"
+              icon={DollarSign}
+              label="LUMP SUM PAYMENTS"
+              isActive={activeTab === 'lumpsum'}
+            />
+            <TabButton
               tab="dashboard"
               icon={BarChart3}
               label="DASHBOARD"
@@ -91,6 +98,10 @@ function App() {
         
         {activeTab === 'records' && (
           <RecordsList key={refreshTrigger} />
+        )}
+        
+        {activeTab === 'lumpsum' && (
+          <LumpSumManagement key={refreshTrigger} />
         )}
         
         {activeTab === 'dashboard' && (

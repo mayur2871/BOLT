@@ -217,6 +217,11 @@ export function RecordsList() {
                     </div>
                     <div className="text-sm text-gray-500">
                       NET: ₹{record.netamount || '0'}
+                      {record.lump_sum_allocated_amount && parseFloat(record.lump_sum_allocated_amount.toString()) > 0 && (
+                        <div className="text-xs text-blue-600">
+                          LUMP SUM: ₹{record.lump_sum_allocated_amount.toLocaleString()}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

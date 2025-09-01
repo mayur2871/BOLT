@@ -128,11 +128,12 @@ export function EditRecordModal({ record, onClose, onSave }: EditRecordModalProp
           const balancePaid = parseFloat(values.balpaidamount) || 0;
           const commission = parseFloat(values.commission) || 0;
           const advance = parseFloat(values.advance) || 0;
+          const lumpSumAllocated = parseFloat(record.lump_sum_allocated_amount?.toString() || '0');
           
-          const netAmount = freightAmount - balancePaid - commission - advance;
+          const netAmount = freightAmount - balancePaid - commission - advance - lumpSumAllocated;
           
           setFieldValue('netamount', netAmount.toString());
-        }, [values.freightamount, values.total, values.balpaidamount, values.commission, values.advance, setFieldValue]);
+        }, [values.freightamount, values.total, values.balpaidamount, values.commission, values.advance, record.lump_sum_allocated_amount, setFieldValue]);
 
         // Auto-calculate Days in Hold (LR Date to Date of Unload)
         useEffect(() => {
