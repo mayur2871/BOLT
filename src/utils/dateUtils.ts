@@ -34,10 +34,12 @@ export function getTodayDate(): string {
 }
 
 export function convertDDMMYYYYToISO(dateString) {
-  if (!dateString || typeof dateString !== 'string') return '';
-  const parts = dateString.split('-');
+  if (!dateString || typeof dateString !== 'string' || dateString.length < 8) return '';
+  const parts = dateString.trim().split('-');
   if (parts.length !== 3) return '';
   const [dd, mm, yyyy] = parts;
-  if (!dd || !mm || !yyyy) return '';
+  if (!dd || !mm || !yyyy || yyyy.length !== 4) return '';
+  // Validate all parts are numeric
+  if (isNaN(dd) || isNaN(mm) || isNaN(yyyy)) return '';
   return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
 }
