@@ -33,7 +33,7 @@ export function getTodayDate(): string {
   return formatDateForInput(new Date());
 }
 
-export function convertDDMMYYYYToISO(dateString) {
+export function convertDDMMYYYYToISO(dateString): date {
   if (!dateString || typeof dateString !== 'string') return '';
   const parts = dateString.split('-');
   if (parts.length !== 3) return '';
