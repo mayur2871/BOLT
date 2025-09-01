@@ -59,6 +59,31 @@ export function useTransportRecords() {
 
       if (error) throw error;
       setRecords(prev => prev.map(record => record.id === id ? data : record));
+      
+      // Check if record should be marked as paid after lump sum allocation
+      if (updates.lump_sum_allocated_amount !== undefined) {
+        const total = parseFloat(data.total || '0');
+        const advance = parseFloat(data.advance || '0');
+        const balPaid = parseFloat(data.balpaidamount || '0');
+        const lumpSumAllocated = parseFloat(data.lump_sum_allocated_amount?.toString() || '0');
+        const commission = parseFloat(data.commission || '0');
+        
+        const totalPaid = advance + balPaid + lumpSumAllocated + commission;
+        
+        if (totalPaid >= total && data.isbalpaid !== 'YES') {
+          // Auto-update payment status if fully paid
+          await supabase
+            .from('transport_records')
+            .update({ isbalpaid: 'YES' })
+            .eq('id', id);
+          
+          // Update local state
+          setRecords(prev => prev.map(record => 
+            record.id === id ? { ...record, isbalpaid: 'YES' } : record
+          ));
+        }
+      }
+      
       return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update record');

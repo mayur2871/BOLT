@@ -107,3 +107,29 @@ textarea::placeholder {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
+
+/* Lump sum specific styling */
+.lump-sum-card {
+  transition: all 0.2s ease-in-out;
+  border: 2px solid transparent;
+}
+
+.lump-sum-card:hover {
+  border-color: #10b981;
+  transform: translateY(-1px);
+}
+
+.lump-sum-card.selected {
+  border-color: #10b981;
+  background-color: #f0fdf4;
+}
+
+/* Allocation table styling */
+.allocation-input {
+  transition: all 0.2s ease-in-out;
+}
+
+.allocation-input:focus {
+  transform: scale(1.02);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}

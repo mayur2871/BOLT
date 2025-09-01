@@ -7,12 +7,15 @@ import {
   Calendar,
   PieChart,
   BarChart3,
-  MapPin
+  MapPin,
+  Building
 } from 'lucide-react';
 import { useTransportRecords } from '../hooks/useTransportRecords';
+import { useLumpSumPayments } from '../hooks/useLumpSumPayments';
 
 export function Dashboard() {
   const { records, loading } = useTransportRecords();
+  const { lumpSumPayments, loading: lumpSumLoading } = useLumpSumPayments();
 
   const stats = useMemo(() => {
     if (!records.length) {
@@ -26,7 +29,8 @@ export function Dashboard() {
         uniqueDestinations: 0,
         avgAmount: 0,
         paidPercentage: 0,
-        recentRecords: []
+        recentRecords: [],
+        totalLumpSumAllocated: 0
       };
     }
 
@@ -49,6 +53,11 @@ export function Dashboard() {
       return sum + (isNaN(amount) ? 0 : amount);
     }, 0);
 
+    const totalLumpSumAllocated = records.reduce((sum, record) => {
+      const amount = parseFloat(record.lump_sum_allocated_amount?.toString() || '0');
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+
     const uniqueTrucks = new Set(records.map(r => r.truckno).filter(Boolean)).size;
     const uniqueTransports = new Set(records.map(r => r.transport).filter(Boolean)).size;
     const uniqueDestinations = new Set(records.map(r => r.destination).filter(Boolean)).size;
@@ -68,9 +77,33 @@ export function Dashboard() {
       uniqueDestinations,
       avgAmount,
       paidPercentage,
-      recentRecords
+      recentRecords,
+      totalLumpSumAllocated
     };
   }, [records]);
+
+  const lumpSumStats = useMemo(() => {
+    if (!lumpSumPayments.length) {
+      return {
+        totalLumpSums: 0,
+        totalLumpSumAmount: 0,
+        totalRemainingBalance: 0,
+        fullyAllocatedCount: 0
+      };
+    }
+
+    const totalLumpSums = lumpSumPayments.length;
+    const totalLumpSumAmount = lumpSumPayments.reduce((sum, payment) => sum + payment.amount, 0);
+    const totalRemainingBalance = lumpSumPayments.reduce((sum, payment) => sum + payment.remaining_balance, 0);
+    const fullyAllocatedCount = lumpSumPayments.filter(payment => payment.remaining_balance === 0).length;
+
+    return {
+      totalLumpSums,
+      totalLumpSumAmount,
+      totalRemainingBalance,
+      fullyAllocatedCount
+    };
+  }, [lumpSumPayments]);
 
   const StatCard = ({ 
     title, 
@@ -99,7 +132,7 @@ export function Dashboard() {
     </div>
   );
 
-  if (loading) {
+  if (loading || lumpSumLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -141,6 +174,34 @@ export function Dashboard() {
           value={stats.uniqueDestinations}
           icon={MapPin}
           color="bg-orange-500"
+        />
+      </div>
+
+      {/* Lump Sum Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="LUMP SUM PAYMENTS"
+          value={lumpSumStats.totalLumpSums}
+          icon={Building}
+          color="bg-indigo-500"
+        />
+        <StatCard
+          title="TOTAL LUMP SUM"
+          value={`₹${lumpSumStats.totalLumpSumAmount.toLocaleString()}`}
+          icon={DollarSign}
+          color="bg-green-600"
+        />
+        <StatCard
+          title="REMAINING BALANCE"
+          value={`₹${lumpSumStats.totalRemainingBalance.toLocaleString()}`}
+          icon={TrendingUp}
+          color="bg-yellow-500"
+        />
+        <StatCard
+          title="ALLOCATED TO RECORDS"
+          value={`₹${stats.totalLumpSumAllocated.toLocaleString()}`}
+          icon={Package}
+          color="bg-blue-600"
         />
       </div>
 
