@@ -33,34 +33,36 @@ const validationSchema = yup.object().shape({
 });
 
 export function EditRecordModal({ record, onClose, onSave }: EditRecordModalProps) {
-  const initialValues = {
-    srno: record.srno || '',
-    smsdate: record.smsdate || '',
-    lrdate: record.lrdate || '',
-    biltyno: record.biltyno || '',
-    truckno: record.truckno || '',
-    transport: record.transport || '',
-    destination: record.destination || '',
-    weight: record.weight || '',
-    rate: record.rate || '',
-    total: record.total || '',
-    biltycharge: record.biltycharge || '',
-    freightamount: record.freightamount || '',
-    advance: record.advance || '',
-    advancedate: record.advancedate || '',
-    commission: record.commission || '',
-    balpaidamount: record.balpaidamount || '',
-    balpaiddate: record.balpaiddate || '',
-    netamount: record.netamount || '',
-    isbalpaid: record.isbalpaid || 'NO',
-    dateofreach: record.dateofreach || '',
-    dateofunload: record.dateofunload || '',
-    dayinhold: record.dayinhold || '',
-    holdingcharge: record.holdingcharge || '',
-    totalholdingamount: record.totalholdingamount || '',
-    courierdate: record.courierdate || ''
-  };
+ 
+const initialValues = {
+  srno: record.srno || '',
+  smsdate: convertDDMMYYYYToISO(record.smsdate),
+  lrdate: convertDDMMYYYYToISO(record.lrdate),
+  biltyno: record.biltyno || '',
+  truckno: record.truckno || '',
+  transport: record.transport || '',
+  destination: record.destination || '',
+  weight: record.weight || '',
+  rate: record.rate || '',
+  total: record.total || '',
+  biltycharge: record.biltycharge || '',
+  freightamount: record.freightamount || '',
+  advance: record.advance || '',
+  advancedate: convertDDMMYYYYToISO(record.advancedate),
+  commission: record.commission || '',
+  balpaidamount: record.balpaidamount || '',
+  balpaiddate: convertDDMMYYYYToISO(record.balpaiddate),
+  netamount: record.netamount || '',
+  isbalpaid: record.isbalpaid || 'NO',
+  dateofreach: convertDDMMYYYYToISO(record.dateofreach),
+  dateofunload: convertDDMMYYYYToISO(record.dateofunload),
+  dayinhold: record.dayinhold || '',
+  holdingcharge: record.holdingcharge || '',
+  totalholdingamount: record.totalholdingamount || '',
+  courierdate: convertDDMMYYYYToISO(record.courierdate)
+};
 
+  
   const { updateRecord } = useTransportRecords();
   const { savedTrucks, savedTransports, addTruck, addTransport } = useSavedOptions();
 
