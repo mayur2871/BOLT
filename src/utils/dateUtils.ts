@@ -32,3 +32,11 @@ export function formatDateForInput(date: Date): string {
 export function getTodayDate(): string {
   return formatDateForInput(new Date());
 }
+
+export function convertDDMMYYYYToISO(dateString) {
+  if (!dateString || typeof dateString !== 'string') return '';
+  const parts = dateString.split('-');
+  if (parts.length !== 3) return '';
+  const [dd, mm, yyyy] = parts;
+  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+}
