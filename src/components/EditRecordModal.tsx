@@ -68,22 +68,6 @@ const initialValues = {
   const { updateRecord } = useTransportRecords();
   const { savedTrucks, savedTransports, addTruck, addTransport } = useSavedOptions();
 
-  const handleSubmit = async (values: any, { setSubmitting }: any) => {
-    setSubmitting(true);
-
-    try {
-      const transformedData = transformFormDataToUppercase(values);
-      await updateRecord(record.id, transformedData);
-      alert('RECORD UPDATED SUCCESSFULLY!');
-      onSave();
-    } catch (error) {
-      console.error('Error updating record:', error);
-      alert('FAILED TO UPDATE RECORD. PLEASE TRY AGAIN.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleAddTruck = async (truckNo: string) => {
     try {
       await addTruck(truckNo);
@@ -100,13 +84,29 @@ const initialValues = {
     }
   };
 
+  const onSubmit = async (values: any, { setSubmitting }: any) => {
+    setSubmitting(true);
+
+    try {
+      const transformedData = transformFormDataToUppercase(values);
+      await updateRecord(record.id, transformedData);
+      alert('RECORD UPDATED SUCCESSFULLY!');
+      onSave();
+    } catch (error) {
+      console.error('Error updating record:', error);
+      alert('FAILED TO UPDATE RECORD. PLEASE TRY AGAIN.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <Formik
       initialValues={initialValues}
       validationSchema={validationSchema}
-      onSubmit={handleSubmit}
+      onSubmit={onSubmit}
     >
-      {({ values, handleChange, handleBlur, errors, touched, isSubmitting, setFieldValue }) => {
+      {({ values, handleChange, handleBlur, errors, touched, isSubmitting, setFieldValue, submitForm }) => {
         // Auto-calculate Total Amount (Weight × Rate)
         useEffect(() => {
           // Only auto-calculate if rate is not "FIX"
@@ -434,7 +434,7 @@ const initialValues = {
                   CANCEL
                 </button>
                 <button
-                  onClick={handleSubmit}
+                  onClick={submitForm}
                   disabled={isSubmitting}
                   className="btn-primary flex items-center space-x-2"
                 >
