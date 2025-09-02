@@ -434,7 +434,7 @@ const initialValues = {
                   CANCEL
                 </button>
                 <button
-                  onClick={submitForm}
+                  type="submit"
                   disabled={isSubmitting}
                   className="btn-primary flex items-center space-x-2"
                 >
